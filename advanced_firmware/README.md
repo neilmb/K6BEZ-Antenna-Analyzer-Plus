@@ -4,7 +4,8 @@
 
 This directory contains the standard firmware for the K6BEZ Antenna Analyzer.
 
-Currently the firmware supports revision 6 and 7 PCBs with Arduino Pro Mini compatible microcontrollers and Analog Devices AD9850 synthesizers.
+Currently the firmware supports revision 6 and 7 PCBs with Arduino Pro Mini
+compatible microcontrollers and Analog Devices AD9850 synthesizers.
 
 # Installing
 
@@ -32,10 +33,7 @@ The firmware can be built and installed using the Arduino Integrated Development
 
 # Troubleshooting
 
-The Arduino IDE and the USB connection can be inconsistent sometimes. There are many resources online talking about programming the Arduino on every imaginable operating system and with almost any error.
+The Arduino IDE and the USB connection can be inconsistent sometimes. There
+are many resources online talking about programming the Arduino on every
+imaginable operating system and with almost any error.
 
-If you have problems the [Ham Radio 360 Forum](http://hamradio360.com/community/build-discussion/) is a good place to ask. Please include what operating system you are on and any error message you've encountered.
-
-# Issues, Bugs, Ideas for improvements
-
-We are tracking all issues and ideas for improvements using the [GitHub issues](https://github.com/HamRadio360/Antenna-Analyzer/issues) tracker.
