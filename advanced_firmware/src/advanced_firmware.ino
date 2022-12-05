@@ -15,6 +15,7 @@
 
 // include the library code:
 #include <LiquidCrystal.h>
+#include <Yabl.h>
 
 // * LCD RS pin to digital pin 8
 // * LCD Enable pin to digital pin 9
@@ -29,9 +30,14 @@ LiquidCrystal lcd(8, 9, 15, 14, 16, 10);
 #define FQ_UD 4
 #define SDAT 3
 #define SCLK 5
+
 #define RESET 2
+
 #define MODE A2
 #define BAND A3
+
+Button mode_button;
+Button band_button;
 
 
 long Fstart = 1000000;  // Start Frequency for sweep
@@ -43,12 +49,15 @@ char incoming_char; // Character read from serial stream
 byte mode_pressed = 0;
 int mode = 1;
 
+// Function prototypes??
+void Perform_sweep();
+
 void setup() {
+  mode_button.attach(MODE, INPUT);
+  band_button.attach(BAND, INPUT);
+
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
-
-  // Print a message to the LCD.
-  lcd.print("Antenna Analyzer");
 
   // Configure DDS control pins for digital output
   pinMode(FQ_UD, OUTPUT);
@@ -61,82 +70,18 @@ void setup() {
   pinMode(A1, INPUT);
   analogReference(DEFAULT);
 
-  // initialize serial communication
-  Serial.begin(115200);
-
   // Reset the DDS
   digitalWrite(RESET, HIGH);
   digitalWrite(RESET, LOW);
 
-  //Initialise the incoming serial number to zero
-  serial_input_number = 0;
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("1-30 MHz");
-}
+  lcd.print("30Mc");
+}  // end setup
 
 void loop() {
-  //Check for character
-  if (Serial.available() > 0) {
-    mode = 0;
-    lcd.clear();
-    lcd.setCursor(14, 0);
-    lcd.print("PC");
-    incoming_char = Serial.read();
-    switch (incoming_char) {
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-        serial_input_number = serial_input_number * 10 + (incoming_char - '0');
-        break;
-      case 'A':
-        //Turn frequency into FStart
-        Fstart = serial_input_number;
-        serial_input_number = 0;
-        break;
-      case 'B':
-        //Turn frequency into FStop
-        Fstop = serial_input_number;
-        serial_input_number = 0;
-        break;
-      case 'C':
-        //Turn frequency into FStart and set DDS output to single frequency
-        Fstart = serial_input_number;
-        SetDDSFreq(Fstart);
-        serial_input_number = 0;
-        break;
-      case 'N':
-        // Set number of steps in the sweep
-        num_steps = serial_input_number;
-        serial_input_number = 0;
-        break;
-      case 'S':
-      case 's':
-        Perform_sweep();
-        break;
-      case '?':
-        // Report current configuration to PC
-        Serial.print("Start Freq:");
-        Serial.println(Fstart);
-        Serial.print("Stop Freq:");
-        Serial.println(Fstop);
-        Serial.print("Num Steps:");
-        Serial.println(num_steps);
-        break;
-    }
-    Serial.flush();
-  } else {
-    //No serial data was received
-    if (mode > 0) {
-      Perform_sweep();
-    }
+  if (mode > 0) {
+    Perform_sweep();
   }
 
   if ((digitalRead(BAND) == LOW) or (mode_pressed == 1)) {
@@ -152,7 +97,7 @@ void loop() {
         // Full sweep 1-30 MHz
         lcd.clear();
         lcd.setCursor(0, 0);
-        lcd.print("1-30 MHz");
+        lcd.print("30Mc");
         Fstart = 1000000;
         Fstop = 30000000;
         break;
@@ -253,6 +198,10 @@ void Perform_sweep() {
   minVSWR = 999;
   minFreq = Fstart;
 
+  // Show a period in the upper right when a sweep starts
+  lcd.setCursor(15, 0);
+  lcd.write(".");
+
   // Reset the DDS
   digitalWrite(RESET, HIGH);
   delay(1);
@@ -261,19 +210,8 @@ void Perform_sweep() {
   SetDDSFreq(Fstart);
   delay(100);
 
-//  REV_nosig = analogRead(A0);
-//  FWD_nosig = analogRead(A1);
-//  if(mode==0){
-//    Serial.print("FWD ");
-//    Serial.print(FWD_nosig);
-//    Serial.print(", REV ");
-//    Serial.println(REV_nosig);
-//    Serial.flush();
-//  }
 
-
-
-  // Start loop
+  // Frequency loop
   for (long i = 0; i <= num_steps; i++) {
     // Calculate current frequency
     current_freq = Fstart + i * Fstep;
@@ -281,9 +219,6 @@ void Perform_sweep() {
     // Set DDS to current frequency
     SetDDSFreq(current_freq);
     // Wait a little for settling
-    if (digitalRead(BAND) == LOW) {
-      mode_pressed = 1;
-    }
     delay(10);
     // Read the forawrd and reverse voltages
     REV = analogRead(A0);
@@ -301,34 +236,14 @@ void Perform_sweep() {
       minFreq = current_freq;
       minVSWR = VSWR;
     }
+  }  // end frequency loop
 
-    if (mode == 0) {
-      // Send current line back to PC over serial bus
-      Serial.print(current_freq);
-      Serial.print(",");
-      Serial.print(long(VSWR * 1000)); // This *1000 is to make the system compatible with the PIC version
-      Serial.print(",");
-      Serial.print(FWD);
-      Serial.print(",");
-      Serial.println(REV);
-    }
-  }
 
-  // Send "End" to PC to indicate end of sweep
-  if (mode == 0) {
-    Serial.println("End");
-    Serial.print("Freq ");
-    Serial.print(minFreq);
-    Serial.print(", VSWR ");
-    Serial.println(minVSWR);
-    Serial.flush();
-  }
+  // clear the period we put in the upper right
+  lcd.setCursor(15, 0);
+  lcd.write(" ");
 
-  lcd.setCursor(15, 1);
-  lcd.print(".");
-  delay(100);
-  lcd.setCursor(15, 1);
-  lcd.print(" ");
+  // results on line 2
   lcd.setCursor(0, 1);
   lcd.print(minFreq);
   lcd.print(",");
